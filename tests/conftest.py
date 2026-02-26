@@ -28,13 +28,13 @@ def set_test_env(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clean_postgres():
-    """
-    Ensures isolation between tests when Postgres backend is used.
-    """
-    if os.getenv("COUNT_BACKEND_TYPE") == "postgres":
+    if (
+        os.getenv("DATABASE_URL")
+        and os.getenv("COUNT_BACKEND_TYPE") == "postgres"
+    ):
         engine = create_engine(os.getenv("DATABASE_URL"))
         with engine.begin() as conn:
-            conn.execute(text("TRUNCATE TABLE object_counts"))
+            conn.execute(text("TRUNCATE TABLE IF EXISTS object_counts"))
         engine.dispose()
 
 
