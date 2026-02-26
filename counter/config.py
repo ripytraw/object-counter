@@ -71,7 +71,7 @@ def _build_mongo_repo():
 
 
 def _build_postgres_repo():
-    db_url = os.getenv("DATABASE_URL")
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg2://test:test@postgres:5432/test_db")
     if not db_url:
         raise RuntimeError(
             "DATABASE_URL must be set when COUNT_BACKEND_TYPE=postgres"

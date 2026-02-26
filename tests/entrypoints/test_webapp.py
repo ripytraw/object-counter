@@ -4,17 +4,10 @@ import json
 TEST_BOY_IMAGE = "boy.jpg"
 
 
-# -------------------------------------------------------------------
-# Existing Endpoint Regression Test
-# -------------------------------------------------------------------
-
-def test_object_detection(client, image_file_factory):
+def test_object_count_returns_expected_fields(client, image_file_factory):
     """
-    Regression test for /object-count endpoint.
-
-    Verifies:
-    - HTTP 200 response
-    - Stable JSON contract (current_objects, total_objects)
+    Verifies that /object-count returns a successful response
+    with the expected response structure.
     """
 
     image_file = image_file_factory(TEST_BOY_IMAGE)
@@ -40,16 +33,10 @@ def test_object_detection(client, image_file_factory):
     assert "total_objects" in response_json
 
 
-# -------------------------------------------------------------------
-# Integration Tests for /list-predictions Endpoint
-# -------------------------------------------------------------------
-
-def test_list_predictions_success(client, image_file_factory):
+def test_list_predictions_returns_valid_structure(client, image_file_factory):
     """
-    Verifies:
-    - HTTP 200 response
-    - Returns list
-    - Prediction object schema stability
+    Verifies that /list-predictions returns a list of predictions
+    with the expected schema.
     """
 
     image_file = image_file_factory(TEST_BOY_IMAGE)
@@ -83,10 +70,11 @@ def test_list_predictions_success(client, image_file_factory):
         assert isinstance(first_item["score"], float)
 
 
-def test_list_predictions_missing_file(client):
+def test_list_predictions_missing_file_returns_400(client):
     """
     Missing file should return 400.
     """
+
     response = client.post(
         "/list-predictions",
         data={"threshold": "0.5"},
@@ -96,7 +84,7 @@ def test_list_predictions_missing_file(client):
     assert response.status_code == 400
 
 
-def test_list_predictions_invalid_threshold(client, image_file_factory):
+def test_list_predictions_invalid_threshold_returns_400(client, image_file_factory):
     """
     Non-numeric threshold should return 400.
     """
@@ -117,7 +105,7 @@ def test_list_predictions_invalid_threshold(client, image_file_factory):
     assert response.status_code == 400
 
 
-def test_list_predictions_invalid_file_type(client):
+def test_list_predictions_invalid_file_type_returns_400(client):
     """
     Non-image file should return 400.
     """
