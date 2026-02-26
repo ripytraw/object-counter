@@ -1,5 +1,7 @@
 # NIQ Innovation Enablement - Object Counter Challenge
 
+[![CI](https://github.com/ripytraw/object-counter/actions/workflows/ci.yml/badge.svg)](https://github.com/ripytraw/object-counter/actions/workflows/ci.yml)
+
 The goal of this repo is demonstrate how to apply Hexagonal Architecture in a ML based system.
 
 This application consists in a Flask API that receives an image and a threshold and returns the number of objects detected in the image.
