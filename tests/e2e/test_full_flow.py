@@ -42,5 +42,7 @@ def test_full_object_count_flow(client, image_file_factory):
     assert response2.status_code == 200
     body2 = json.loads(response2.data)
 
-    # total_objects should increase or stay same (never decrease)
-    assert body2["total_objects"] >= body1["total_objects"]
+    total1 = sum(body1["total_objects"].values())
+    total2 = sum(body2["total_objects"].values())
+
+    assert total2 >= total1
