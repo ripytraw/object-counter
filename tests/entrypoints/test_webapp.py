@@ -1,42 +1,138 @@
 import io
 import json
 
-import pytest
-
-from pathlib import Path
-from counter.entrypoints.webapp import create_app
+TEST_BOY_IMAGE = "boy.jpg"
 
 
-@pytest.fixture
-def client():
-    app = create_app()
-    app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
+# -------------------------------------------------------------------
+# Existing Endpoint Regression Test
+# -------------------------------------------------------------------
 
-@pytest.fixture
-def image_path():
-    ref_dir = Path(__file__).parent
-    return ref_dir.parent.parent / "resources" / "images" / "boy.jpg"
+def test_object_detection(client, image_file_factory):
+    """
+    Regression test for /object-count endpoint.
 
+    Verifies:
+    - HTTP 200 response
+    - Stable JSON contract (current_objects, total_objects)
+    """
 
-def test_object_detection(client, image_path):
-    # Load the image from the path resource/boy.jpg
-    with open(image_path, 'rb') as f:
-        image_data = f.read()
-    image = io.BytesIO(image_data)
+    image_file = image_file_factory(TEST_BOY_IMAGE)
 
     data = {
-        'threshold': '0.9',
-        'model_name': 'ssd_mobilenet_v2',
+        "threshold": "0.9",
+        "model_name": "ssd_mobilenet_v2",
+        "file": (image_file, TEST_BOY_IMAGE),
     }
-    data['file'] = (image, 'test.jpg')
 
-    # Make a test request to the object_detection endpoint
-    response = client.post('/object-count', data = data,
-        content_type='multipart/form-data', buffered=True)
+    response = client.post(
+        "/object-count",
+        data=data,
+        content_type="multipart/form-data",
+        buffered=True,
+    )
 
-    # Check that the count_action was called with the correct arguments and
-    # and status code is correct(Integration test)
     assert response.status_code == 200
-    assert json.loads(response.data) != None
+
+    response_json = json.loads(response.data)
+
+    assert "current_objects" in response_json
+    assert "total_objects" in response_json
+
+
+# -------------------------------------------------------------------
+# Integration Tests for /list-predictions Endpoint
+# -------------------------------------------------------------------
+
+def test_list_predictions_success(client, image_file_factory):
+    """
+    Verifies:
+    - HTTP 200 response
+    - Returns list
+    - Prediction object schema stability
+    """
+
+    image_file = image_file_factory(TEST_BOY_IMAGE)
+
+    data = {
+        "threshold": "0.5",
+        "file": (image_file, TEST_BOY_IMAGE),
+    }
+
+    response = client.post(
+        "/list-predictions",
+        data=data,
+        content_type="multipart/form-data",
+        buffered=True,
+    )
+
+    assert response.status_code == 200
+
+    response_json = json.loads(response.data)
+    assert isinstance(response_json, list)
+
+    if response_json:
+        first_item = response_json[0]
+
+        assert isinstance(first_item, dict)
+
+        expected_keys = {"class_name", "score", "box"}
+        assert expected_keys.issubset(first_item.keys())
+
+        assert isinstance(first_item["class_name"], str)
+        assert isinstance(first_item["score"], float)
+
+
+def test_list_predictions_missing_file(client):
+    """
+    Missing file should return 400.
+    """
+    response = client.post(
+        "/list-predictions",
+        data={"threshold": "0.5"},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+
+
+def test_list_predictions_invalid_threshold(client, image_file_factory):
+    """
+    Non-numeric threshold should return 400.
+    """
+
+    image_file = image_file_factory(TEST_BOY_IMAGE)
+
+    data = {
+        "threshold": "invalid",
+        "file": (image_file, TEST_BOY_IMAGE),
+    }
+
+    response = client.post(
+        "/list-predictions",
+        data=data,
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+
+
+def test_list_predictions_invalid_file_type(client):
+    """
+    Non-image file should return 400.
+    """
+
+    fake_file = io.BytesIO(b"not an image")
+
+    data = {
+        "threshold": "0.5",
+        "file": (fake_file, "test.txt"),
+    }
+
+    response = client.post(
+        "/list-predictions",
+        data=data,
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
