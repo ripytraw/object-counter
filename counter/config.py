@@ -4,7 +4,16 @@ from counter.adapters.count_repo import CountMongoDBRepo, CountInMemoryRepo
 from counter.adapters.object_detector import TFSObjectDetector, FakeObjectDetector
 from counter.domain.actions import CountDetectedObjects, ListDetectedPredictions
 
-ENV = str(os.getenv("ENV", "dev")).lower()
+ALLOWED_ENVS = {"dev", "prod"}
+
+def get_env():
+    env = str(os.getenv("ENV", "dev")).lower()
+
+    if env not in ALLOWED_ENVS:
+        raise RuntimeError(
+            f"Invalid ENV '{env}'. Allowed: {ALLOWED_ENVS}"
+        )
+    return env
 
 # --- DEV INFRA ---
 def _dev_object_detector():
@@ -28,11 +37,13 @@ def _prod_count_repo():
 
 # --- Loader Functions ---
 def get_object_detector():
-    count_action_fn = f"_{ENV}_object_detector"
+    env = get_env()
+    count_action_fn = f"_{env}_object_detector"
     return globals()[count_action_fn]()
 
 def get_count_repo():
-    count_action_fn = f"_{ENV}_count_repo"
+    env = get_env()
+    count_action_fn = f"_{env}_count_repo"
     return globals()[count_action_fn]()
 
 def get_count_action() -> CountDetectedObjects:

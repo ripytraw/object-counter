@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from counter.domain.actions import CountDetectedObjects
+from counter.domain.actions import CountDetectedObjects, ListDetectedPredictions
 from counter.domain.models import ObjectCount
 from tests.domain.helpers import generate_prediction
 
@@ -31,3 +31,22 @@ class TestCountDetectedObjects:
         CountDetectedObjects(object_detector, count_object_repo).execute(None, 0)
         count_object_repo.update_values.assert_called_with(
             [ObjectCount('cat', 2), ObjectCount('dog', 2), ObjectCount('rabbit', 1)])
+
+
+class TestListDetectedPredictions:
+
+    def test_filters_predictions_above_threshold(self):
+        object_detector = Mock()
+        object_detector.predict.return_value = [
+            generate_prediction('cat', 0.9),
+            generate_prediction('dog', 0.4),
+            generate_prediction('rabbit', 0.8),
+        ]
+
+        use_case = ListDetectedPredictions(object_detector)
+
+        result = use_case.execute(None, 0.5)
+
+        assert len(result) == 2
+        assert result[0].class_name == 'cat'
+        assert result[1].class_name == 'rabbit'
