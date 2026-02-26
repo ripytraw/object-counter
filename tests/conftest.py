@@ -2,7 +2,7 @@ import io
 import os
 import pytest
 from pathlib import Path
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, inspect
 
 from counter.entrypoints.webapp import create_app
 
@@ -33,10 +33,13 @@ def clean_postgres():
         and os.getenv("COUNT_BACKEND_TYPE") == "postgres"
     ):
         engine = create_engine(os.getenv("DATABASE_URL"))
-        with engine.begin() as conn:
-            conn.execute(text("TRUNCATE TABLE IF EXISTS object_counts"))
-        engine.dispose()
+        inspector = inspect(engine)
 
+        if "object_counts" in inspector.get_table_names():
+            with engine.begin() as conn:
+                conn.execute(text("TRUNCATE TABLE object_counts"))
+
+        engine.dispose()
 
 # -------------------------------------------------------------------
 # Flask Test Client

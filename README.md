@@ -31,20 +31,12 @@ The domain layer is fully infrastructure-independent.
 
 # Configuration Model
 
-Infrastructure selection is controlled explicitly via environment variables.
+Infrastructure selection for the Object & Count Adapters is controlled following environment variables.
 
 | Variable | Description |
 |----------|------------|
 | `MODEL_TYPE` | `fake` or `tensorflow` |
 | `COUNT_BACKEND_TYPE` | `inmemory`, `mongo`, `postgres` |
-| `TF_MODEL_NAME` | TensorFlow model name |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `POSTGRES_USER` | Postgres username |
-| `POSTGRES_PASSWORD` | Postgres password |
-| `POSTGRES_DB` | Postgres database |
-| `MONGO_DB` | Mongo database |
-
----
 
 # Environment Setup
 
@@ -94,12 +86,6 @@ Stop services:
 ./scripts/run.sh prod-down
 ```
 
-API will be available at:
-
-```
-http://localhost:5000
-```
-
 ---
 
 # Calling the Service
@@ -127,6 +113,7 @@ pytest
 CI runs:
 
 - flake8 lint checks  
+- Validation & Unit Test cases for new endpoint
 - PostgreSQL-backed integration tests  
 - Fake object detector for deterministic execution  
 
@@ -146,7 +133,6 @@ CI runs:
 
 # Future Improvements
 
-- Alembic migrations  
-- Gunicorn production server  
-- Docker health checks  
-- Observability enhancements  
+- Asynchronous API Execution
+- Debugging & Error Handling
+- Observability enhancement - inference level metadata storage
