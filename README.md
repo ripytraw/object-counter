@@ -1,133 +1,152 @@
-# NIQ Innovation Enablement - Object Counter Challenge
+# NIQ Innovation Enablement – Object Counter Challenge
 
 [![CI](https://github.com/ripytraw/object-counter/actions/workflows/ci.yml/badge.svg)](https://github.com/ripytraw/object-counter/actions/workflows/ci.yml)
 
-The goal of this repo is demonstrate how to apply Hexagonal Architecture in a ML based system.
+The goal of this repository is to demonstrate how to apply **Hexagonal Architecture (Ports & Adapters)** in an ML-based system.
 
-This application consists in a Flask API that receives an image and a threshold and returns the number of objects detected in the image.
+This application consists of a Flask API that receives an image and a threshold and returns:
+
+- The number of detected objects grouped by class  
+- A list of predictions above the given threshold  
+- A cumulative count of detected objects persisted in a database  
+
+---
+
+# Architecture
 
 The application is composed of three layers:
 
-- **entrypoints**: Exposes the API and receives the requests. It is also responsible for validating the requests and returning the responses.
+## Entrypoints
+Exposes the API and receives requests. Responsible for validation and formatting responses.
 
-- **adapters**: Communicates with external services. It is responsible for translating the domain objects to the external services objects and vice-versa.
+## Adapters
+Communicates with external services (TensorFlow Serving, databases).  
+Translates domain objects to external representations and vice versa.
 
-- **domain**: Business logic. It is responsible for orchestrating the calls to the external services and for applying the business rules.
+## Domain
+Contains business logic and use cases. Orchestrates external calls and applies business rules.  
+The domain layer is fully infrastructure-independent.
 
-The model used in this example has been taken from 
-[Kaggle](https://www.kaggle.com/models/google/mobilenet-v2/tensorFlow1/openimages-v4-ssd-mobilenet-v2/1)
+---
 
+# Configuration Model
 
-## Instructions to setup the model (Unix)
-```bash
-mkdir -p tmp/model/ssd_mobilenet_v2/1
-curl -L -o tmp/model.tar.gz \
-  http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v2_coco_2018_03_29.tar.gz
-tar -xzvf tmp/model.tar.gz -C tmp/model
-mv \
-    tmp/model/ssd_mobilenet_v2_coco_2018_03_29/saved_model/saved_model.pb \
-    tmp/model/ssd_mobilenet_v2/1
-chmod -R 777 tmp/model
-rm tmp/model.tar.gz
-rm -rf tmp/model/ssd_mobilenet_v2_coco_2018_03_29
-```
+Infrastructure selection is controlled explicitly via environment variables.
 
-By the end you should have the following structure:
- ```
- tmp/
-  model/
-    ssd_mobilenet_v2/
-        1/
-        saved_model.pb
- ```
+| Variable | Description |
+|----------|------------|
+| `MODEL_TYPE` | `fake` or `tensorflow` |
+| `COUNT_BACKEND_TYPE` | `inmemory`, `mongo`, `postgres` |
+| `TF_MODEL_NAME` | TensorFlow model name |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `POSTGRES_USER` | Postgres username |
+| `POSTGRES_PASSWORD` | Postgres password |
+| `POSTGRES_DB` | Postgres database |
+| `MONGO_DB` | Mongo database |
 
-## Setup and run Tensorflow Serving
+---
 
-### For unix systems
-```bash
-num_physical_cores=$(lscpu --all --parse=SOCKET,CORE | grep -v '^#' | uniq | wc -l)
-
-docker run --rm -d \
-    --name=tfserving \
-    -p 8501:8501 \
-    --mount type=bind,source=$(pwd)/tmp/model,target=/models \
-    -e OMP_NUM_THREADS=$num_physical_cores \
-    -e TENSORFLOW_INTRA_OP_PARALLELISM=$num_physical_cores \
-    -e MODEL_NAME=ssd_mobilenet_v2 \
-    tensorflow/serving
-```
-
-### For Windows (Powershell)
-```powershell
-$num_physical_cores=(Get-WmiObject Win32_Processor | Select-Object NumberOfCores).NumberOfCores
-
-docker run --rm -d `
-    --name=tfserving `
-    -p 8501:8501 `
-    -v "$pwd\tmp\model:/models" `
-    -e OMP_NUM_THREADS=$num_physical_cores `
-    -e TENSORFLOW_INTRA_OP_PARALLELISM=$num_physical_cores `
-    -e MODEL_NAME=ssd_mobilenet_v2 `
-    tensorflow/serving
-```
-
-## Running MongoDB
+# Environment Setup
 
 ```bash
-docker run --rm --name test-mongo -p 27017:27017 -d mongo:latest
+cp .env.example .env
 ```
 
-## Setup virtualenv (Python >= 3.10)
+Update the variables in `.env` as needed.
+
+---
+
+# Running the Application
+
+## Local Development
 
 Unix:
+
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-export PYTHONPATH=.
+./scripts/run.sh dev
 ```
 
-Powershell:
+PowerShell:
+
 ```powershell
-python3 -m venv .venv
-.venv\scripts\Activate.ps1
-pip install -r requirements.txt
-$Env:PYTHONPATH = "."
+.\scripts\run.ps1 dev
 ```
 
+---
 
-## Run the application
+## Production-Like Mode (Docker)
 
-### Using fakes
+Unix:
+
 ```bash
-python -m counter.entrypoints.webapp
+./scripts/run.sh prod-up
 ```
 
-### Using real services in docker containers
+PowerShell:
 
-Unix
-```bash
-ENV=prod python -m counter.entrypoints.webapp
-```
-Powershell: 
 ```powershell
-$env:ENV = "prod"
-python -m counter.entrypoints.webapp
+.\scripts\run.ps1 prod-up
 ```
 
-## Call the service
+Stop services:
 
 ```bash
- curl -F "threshold=0.9" -F "file=@resources/images/boy.jpg" http://localhost:5000/object-count
- curl -F "threshold=0.9" -F "file=@resources/images/cat.jpg" http://localhost:5000/object-count
- curl -F "threshold=0.9" -F "file=@resources/images/food.jpg" http://localhost:5000/object-count 
+./scripts/run.sh prod-down
 ```
 
-> [!TIP]
-> If you face service connectivity issues on Windows, try replacing "localhost" with "127.0.0.1" globally
-
-## Run the tests
+API will be available at:
 
 ```
+http://localhost:5000
+```
+
+---
+
+# Calling the Service
+
+```bash
+curl -F "threshold=0.9" \
+     -F "file=@resources/images/cat.jpg" \
+     http://localhost:5000/object-count
+```
+
+```bash
+curl -F "threshold=0.9" \
+     -F "file=@resources/images/cat.jpg" \
+     http://localhost:5000/list-predictions
+```
+
+---
+
+# Running Tests
+
+```bash
 pytest
 ```
+
+CI runs:
+
+- flake8 lint checks  
+- PostgreSQL-backed integration tests  
+- Fake object detector for deterministic execution  
+
+---
+
+# Improvements Implemented
+
+- Added `/list-predictions` endpoint  
+- Implemented PostgreSQL adapter with atomic upsert  
+- Containerized full stack via Docker Compose  
+- Added cross-platform run scripts  
+- Added CI with lint and Postgres integration tests  
+- Introduced capability-driven configuration model  
+- Added dependency injection support for improved testability  
+
+---
+
+# Future Improvements
+
+- Alembic migrations  
+- Gunicorn production server  
+- Docker health checks  
+- Observability enhancements  
