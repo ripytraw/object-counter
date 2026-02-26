@@ -2,25 +2,46 @@ import os
 
 from counter.adapters.count_repo import CountMongoDBRepo, CountInMemoryRepo
 from counter.adapters.object_detector import TFSObjectDetector, FakeObjectDetector
-from counter.domain.actions import CountDetectedObjects
+from counter.domain.actions import CountDetectedObjects, ListDetectedPredictions
 
+ENV = str(os.getenv("ENV", "dev")).lower()
 
-def dev_count_action() -> CountDetectedObjects:
-    return CountDetectedObjects(FakeObjectDetector(), CountInMemoryRepo())
+# --- DEV INFRA ---
+def _dev_object_detector():
+    return FakeObjectDetector()
 
+def _dev_count_repo():
+    return CountInMemoryRepo()
 
-def prod_count_action() -> CountDetectedObjects:
+# --- PROD INFRA ---
+def _prod_object_detector():
     tfs_host = os.environ.get('TFS_HOST', 'localhost')
     tfs_port = os.environ.get('TFS_PORT', 8501)
+    model_name = os.environ.get('MODEL_NAME', 'ssd_mobilenet_v2')
+    return TFSObjectDetector(tfs_host, tfs_port, model_name)
+
+def _prod_count_repo():
     mongo_host = os.environ.get('MONGO_HOST', 'localhost')
     mongo_port = os.environ.get('MONGO_PORT', 27017)
     mongo_db = os.environ.get('MONGO_DB', 'prod_counter')
-    model_name = os.environ.get('MODEL_NAME', 'ssd_mobilenet_v2')
-    return CountDetectedObjects(TFSObjectDetector(tfs_host, tfs_port, model_name),
-                                CountMongoDBRepo(host=mongo_host, port=mongo_port, database=mongo_db))
+    return CountMongoDBRepo(host=mongo_host, port=mongo_port, database=mongo_db)
 
+# --- Loader Functions ---
+def get_object_detector():
+    count_action_fn = f"_{ENV}_object_detector"
+    return globals()[count_action_fn]()
+
+def get_count_repo():
+    count_action_fn = f"_{ENV}_count_repo"
+    return globals()[count_action_fn]()
 
 def get_count_action() -> CountDetectedObjects:
-    env = os.environ.get('ENV', 'dev')
-    count_action_fn = f"{env}_count_action"
-    return globals()[count_action_fn]()
+    return CountDetectedObjects(
+        get_object_detector(),
+        get_count_repo()
+    )
+
+def get_prediction_action() -> ListDetectedPredictions:
+    return ListDetectedPredictions(
+        get_object_detector()
+    )
