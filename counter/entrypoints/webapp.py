@@ -4,12 +4,12 @@ from flask import Flask, request, jsonify
 
 from counter import config
 
-def create_app():
+def create_app(count_action=None, prediction_action=None):
     
     app = Flask(__name__)
     
-    count_action = config.get_count_action()
-    prediction_action = config.get_prediction_action()
+    count_action = count_action or config.get_count_action()
+    prediction_action = prediction_action or config.get_prediction_action()
     
     @app.route('/object-count', methods=['POST'])
     def object_detection():

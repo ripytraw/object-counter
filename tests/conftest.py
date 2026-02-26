@@ -1,31 +1,49 @@
 import io
+import os
 import pytest
 from pathlib import Path
+from sqlalchemy import create_engine, text
+
 from counter.entrypoints.webapp import create_app
 
 
 # -------------------------------------------------------------------
-# Global Test Environment Configuration
+# Deterministic Environment
 # -------------------------------------------------------------------
 
 @pytest.fixture(autouse=True)
 def set_test_env(monkeypatch):
     """
-    Ensures deterministic ENV configuration across all tests.
-    Prevents CI or shell-level ENV leakage.
+    Ensures deterministic configuration across tests.
     """
-    monkeypatch.setenv("ENV", "dev")
+    monkeypatch.setenv("MODEL_TYPE", "fake")
+    # Do not override COUNT_BACKEND_TYPE here
+    # CI sets it to postgres
+    # Local dev defaults to inmemory
 
 
 # -------------------------------------------------------------------
-# Flask Test Client (Integration Boundary)
+# Clean Postgres Between Tests (CI Safe)
+# -------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def clean_postgres():
+    """
+    Ensures isolation between tests when Postgres backend is used.
+    """
+    if os.getenv("COUNT_BACKEND_TYPE") == "postgres":
+        engine = create_engine(os.getenv("DATABASE_URL"))
+        with engine.begin() as conn:
+            conn.execute(text("TRUNCATE TABLE object_counts"))
+        engine.dispose()
+
+
+# -------------------------------------------------------------------
+# Flask Test Client
 # -------------------------------------------------------------------
 
 @pytest.fixture
 def client():
-    """
-    Provides Flask test client with TESTING mode enabled.
-    """
     app = create_app()
     app.config["TESTING"] = True
 
@@ -39,23 +57,13 @@ def client():
 
 @pytest.fixture(scope="session")
 def image_dir():
-    """
-    Base directory for test image assets.
-    """
     ref_dir = Path(__file__).parent
     return ref_dir.parent / "resources" / "images"
 
 
 @pytest.fixture
 def image_file_factory(image_dir):
-    """
-    Factory fixture to load any image by filename.
-    Returns a fresh BytesIO object per call to avoid
-    stream reuse issues across tests.
-    """
-
     def _load(filename: str):
         with open(image_dir / filename, "rb") as f:
             return io.BytesIO(f.read())
-
     return _load
