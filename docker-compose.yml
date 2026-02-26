@@ -35,7 +35,9 @@ services:
       TENSORFLOW_INTRA_OP_PARALLELISM: ${TF_INTRA_OP_THREADS:-2}
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: counter-app
     depends_on:
       - postgres
