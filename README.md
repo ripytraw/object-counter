@@ -119,20 +119,31 @@ CI runs:
 
 ---
 
-# Improvements Implemented
+## Improvements Implemented
 
-- Added `/list-predictions` endpoint  
-- Implemented PostgreSQL adapter with atomic upsert  
-- Containerized full stack via Docker Compose  
-- Added cross-platform run scripts  
-- Added CI with lint and Postgres integration tests  
-- Introduced capability-driven configuration model  
-- Added dependency injection support for improved testability  
+- Added `/list-predictions` endpoint with threshold-based filtering and input validation.
+- Implemented PostgreSQL adapter with atomic upsert (`ON CONFLICT DO UPDATE`) and concurrency-safe counting.
+- Introduced capability-driven configuration (`MODEL_TYPE`, `COUNT_BACKEND_TYPE`, `DATABASE_URL`) for scalable backend selection.
+- Refactored `create_app()` to support optional dependency injection for improved test isolation and modular wiring.
+- Containerized the full stack using Docker and Docker Compose.
+- Added cross-platform run scripts (`run.sh`, `run.ps1`) for standardized local setup.
+- Integrated CI pipeline with:
+  - Static analysis (flake8)
+  - Automated unit and integration tests
+  - Infrastructure-backed Postgres validation via service containers.
 
 ---
 
-# Future Improvements
+## Proposed / Future Improvements
 
-- Asynchronous API Execution
-- Debugging & Error Handling
-- Observability enhancement - inference level metadata storage
+- Introduce schema-based API input validation and standardized response envelopes.
+- Enforce request size limits and early MIME-type validation for uploaded images.
+- Implement streaming-based file handling to prevent in-memory loading of large uploads.
+- Standardize structured error handling and centralized JSON logging (including request tracing fields such as `request_id`, `endpoint`, `model_name`, `threshold`, `status_code`, `response_time_ms`).
+- Introduce rate limiting and authentication mechanisms for API protection.
+- Add request tracing and correlation IDs to support distributed observability.
+- Transition to asynchronous I/O handling for database and inference operations.
+- Enhance monitoring and observability by:
+  - Persisting inference-level metadata (image ID, threshold, model version, object counts, request ID).
+  - Externalizing debug artifacts to centralized storage (e.g., S3 or MLflow).
+- Extend TensorFlow Serving setup to support multi-model and versioned deployments via a centralized model registry.
